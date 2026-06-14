@@ -42,13 +42,12 @@ scene.add(sunLight);
 
 let timeOfDay = Math.PI / 4; 
 
-// --- 3. WELT & RENNSTRECKE (HOCHSKALIERT) ---
+// --- 3. WELT & RENNSTRECKE (VERGRÖSSERT) ---
 const groundMat = new THREE.MeshStandardMaterial({ color: 0x050508, roughness: 0.9, metalness: 0.1 });
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(8000, 8000), groundMat);
 ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
 
-// Original-Punkte beibehalten, aber wir vergrößern sie mathematisch über den Map-Scale Faktor!
 const trackPoints = [
     new THREE.Vector3(0, 0.05, 0),
     new THREE.Vector3(30, 0.05, 180),     
@@ -73,49 +72,51 @@ const trackPoints = [
     new THREE.Vector3(100, 0.05, -150)
 ];
 
-// Skalierungsfaktor für eine größere Map (2.2x größer)
 const mapScale = 2.2;
 trackPoints.forEach(p => p.multiplyScalar(mapScale));
 
 const trackCurve = new THREE.CatmullRomCurve3(trackPoints, true);
 
-// Fahrbahn-Breite proportional vergrößert (Breite 45)
+// Fahrbahn-Breite (45)
 const trackGeometry = new THREE.TubeGeometry(trackCurve, 300, 45, 8, false); 
 const trackMaterial = new THREE.MeshStandardMaterial({ color: 0x18181c, roughness: 0.6, metalness: 0.2 });
 const trackMesh = new THREE.Mesh(trackGeometry, trackMaterial);
 trackMesh.scale.set(1, 0.005, 1); 
 scene.add(trackMesh);
 
-// --- 4. GESCHLOSSENE ROT-WEISSE F1 WÄNDE (NIEDRIGER ALS DAS AUTO) ---
-// Canvas Textur erzeugen, um ein nahtloses Rot-Weiß-Muster auf die durchgehende Wand zu projizieren
+// --- 4. HÖHERE, GESCHLOSSENE ROT-WEISSE WÄNDE ---
 const canvas = document.createElement('canvas');
 canvas.width = 128;
-canvas.height = 16;
+canvas.height = 32; // Canvas leicht erhöht für die Texturstreckung
 const ctx = canvas.getContext('2d');
-ctx.fillStyle = '#cc1111'; ctx.fillRect(0, 0, 64, 16); // Rot
-ctx.fillStyle = '#dddddd'; ctx.fillRect(64, 0, 64, 16); // Weiß
+ctx.fillStyle = '#cc1111'; ctx.fillRect(0, 0, 64, 32); // Rot
+ctx.fillStyle = '#dddddd'; ctx.fillRect(64, 0, 64, 32); // Weiß
 const wallTexture = new THREE.CanvasTexture(canvas);
 wallTexture.wrapS = THREE.RepeatWrapping;
-wallTexture.repeat.set(150, 1); // Wie oft sich das Muster um die Strecke wiederholt
+wallTexture.repeat.set(180, 1); 
 
 const wallMaterial = new THREE.MeshStandardMaterial({ 
     map: wallTexture, 
-    roughness: 0.7,
+    roughness: 0.6,
     metalness: 0.1
 });
 
-// Durchgehende, geschlossene Schläuche/Wände generieren. Radius 0.45 = Etwas niedriger als das Auto (Höhe 0.9)
-const leftWallGeo = new THREE.TubeGeometry(trackCurve, 400, 0.45, 6, false);
-const rightWallGeo = new THREE.TubeGeometry(trackCurve, 400, 0.45, 6, false);
+// Radius der Tubes auf 1.8 erhöht (Dadurch werden die geschlossenen Wände deutlich höher als das Auto)
+const leftWallGeo = new THREE.TubeGeometry(trackCurve, 400, 1.8, 8, false);
+const rightWallGeo = new THREE.TubeGeometry(trackCurve, 400, 1.8, 8, false);
 
 const leftWallMesh = new THREE.Mesh(leftWallGeo, wallMaterial);
 const rightWallMesh = new THREE.Mesh(rightWallGeo, wallMaterial);
 
-// Wände flach drücken (Formel-1-Banden Look) und nach außen auf den Fahrbahnrand schieben
-leftWallMesh.scale.set(1, 0.8, 1);
-rightWallMesh.scale.set(1, 0.8, 1);
+// Optische Anpassung: Die Wände werden vertikal leicht gestreckt, damit sie wie glatte, hohe F1-Mauern wirken
+leftWallMesh.scale.set(1, 1.4, 1);
+rightWallMesh.scale.set(1, 1.4, 1);
 
-// Positionen für Kollisionsberechnung im Loop extrahieren
+// Die Wandmitte leicht nach oben verschieben, damit sie bündig auf dem Asphalt aufsitzt
+leftWallMesh.position.y = 1.2; 
+rightWallMesh.position.y = 1.2;
+
+// Datenpunkte für präzise mathematische Kollisionen sammeln
 const wallResolution = 500;
 const leftWallPoints = [];
 const rightWallPoints = [];
@@ -126,18 +127,11 @@ for(let i=0; i<wallResolution; i++) {
     let tangent = trackCurve.getTangentAt(t).normalize();
     let normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
     
-    // Abstand zur Mitte: Fahrbahnradius (45) + Wanddicke
-    leftWallPoints.push(pos.clone().add(normal.clone().multiplyScalar(45.2)));
-    rightWallPoints.push(pos.clone().add(normal.clone().multiplyScalar(-45.2)));
+    // Distanzberechnung angepasst an die neue Tubes-Dicke (Radius)
+    leftWallPoints.push(pos.clone().add(normal.clone().multiplyScalar(44.2)));
+    rightWallPoints.push(pos.clone().add(normal.clone().multiplyScalar(-44.2)));
 }
 
-// Wir verschieben die Geometrie der Wände optisch exakt an die Ränder
-leftWallMesh.position.y = 0.35; // Leicht über dem Boden schweben lassen
-rightWallMesh.position.y = 0.35;
-
-// Für die Optik positionieren wir die Wände mathematisch leicht nach links/rechts versetzt vor dem Rendern
-// Trick: Wir nutzen die Generierungspunkte für die Kollision direkt im Loop, lassen die Meshes aber dekorativ anzeigen.
-// Damit die Tubes exakt außen liegen, verschieben wir die Vertices leicht. Da das im Shader schwer ist, nutzen wir unsere exakten Punkte:
 scene.add(leftWallMesh, rightWallMesh);
 
 // --- 5. FAHRZEUG ---
@@ -229,29 +223,29 @@ let speed = 0, heading = 0, steerAngle = 0;
 let nitro = 100, nitroLocked = false; 
 let driftAngle = 0, isDrifting = false, currentMovementHeading = 0;
 
-const maxSpeed = 2.1, accel = 0.016, brake = 0.045, drag = 0.985; // An die vergrößerte Map angepasst
+const maxSpeed = 2.1, accel = 0.016, brake = 0.045, drag = 0.985; 
 let startPos = new THREE.Vector3(0, 0, 0);
 
-// RECHTLICHES ABPRALLEN AN DEN GESCHLOSSENEN WÄNDEN
+// PRÄZISE ANPRALL-LOGIK AN DEN HÖHEREN MAUERN
 function checkCollisions() {
     const carRadius = 1.9; 
-    const bounceFactor = -0.35; // Prallt ab und verliert Energie
+    const bounceFactor = -0.35; // Dreht Impuls um beim Crash
 
     for (let i = 0; i < wallResolution; i++) {
-        // Linke Wand abprallen
+        // Linke hohe Wand
         let distLeft = carGroup.position.distanceTo(leftWallPoints[i]);
-        if (distLeft < carRadius + 45.0) { // Erkennt Grenze zur äußeren Tube
+        if (distLeft < carRadius + 44.2) { 
             let pushDir = new THREE.Vector3().subVectors(carGroup.position, leftWallPoints[i]).normalize();
             pushDir.y = 0;
-            carGroup.position.add(pushDir.multiplyScalar(0.4)); // Drückt Auto raus
+            carGroup.position.add(pushDir.multiplyScalar(0.4)); 
             speed *= bounceFactor;
             heading += 0.04;
             break;
         }
 
-        // Rechte Wand abprallen
+        // Rechte hohe Wand
         let distRight = carGroup.position.distanceTo(rightWallPoints[i]);
-        if (distRight < carRadius + 45.0) {
+        if (distRight < carRadius + 44.2) {
             let pushDir = new THREE.Vector3().subVectors(carGroup.position, rightWallPoints[i]).normalize();
             pushDir.y = 0;
             carGroup.position.add(pushDir.multiplyScalar(0.4));
@@ -321,7 +315,7 @@ function animate() {
     }
 
     if (!isPlaying) {
-        camera.position.set(0, 250, -450); // Höherer Überblick wegen Skalierung
+        camera.position.set(0, 250, -450); 
         camera.lookAt(new THREE.Vector3(0, 0, 0));
         renderer.render(scene, camera);
         return; 
@@ -388,7 +382,7 @@ function animate() {
     carGroup.position.x += Math.sin(currentMovementHeading) * speed;
     carGroup.position.z += Math.cos(currentMovementHeading) * speed;
 
-    // Kollisionsprüfung gegen geschlossene Wände
+    // Kollisionen prüfen
     checkCollisions();
 
     // Staub
@@ -423,7 +417,7 @@ function animate() {
         if(pr[i] < 0) {
             pr[i] = 100;
             pr[i-1] = carGroup.position.x + (Math.random()-0.5)*180;
-            pr[i+1] = carGroup.position.z + (Math.random()-0.5)*180;
+            pr[i+1] = carGroup.position.z + (Math.random()-0.5)*160;
         }
     }
     rain.geometry.attributes.position.needsUpdate = true;
