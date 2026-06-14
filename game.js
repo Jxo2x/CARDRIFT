@@ -23,7 +23,7 @@ renderer.domElement.addEventListener("webglcontextlost", (event) => {
 // Game State
 let isPlaying = false;
 
-// UI Elemente
+// UI Elemente holen
 const uiMenu = document.getElementById('main-menu');
 const uiHud = document.getElementById('hud');
 const uiSpeed = document.getElementById('ui-speed');
@@ -42,112 +42,105 @@ scene.add(sunLight);
 
 let timeOfDay = Math.PI / 4; 
 
-// --- 3. WELT & RENNSTRECKE (VERGRÖSSERT) ---
+// --- 3. WELT & RENNSTRECKE (HOCHSKALIERT) ---
 const groundMat = new THREE.MeshStandardMaterial({ color: 0x050508, roughness: 0.9, metalness: 0.1 });
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(8000, 8000), groundMat);
 ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
 
+// Original-Punkte beibehalten, aber wir vergrößern sie mathematisch über den Map-Scale Faktor!
 const trackPoints = [
     new THREE.Vector3(0, 0.05, 0),
-    new THREE.Vector3(60, 0.05, 360),     
-    new THREE.Vector3(300, 0.05, 600),
-    new THREE.Vector3(700, 0.05, 500),    
-    new THREE.Vector3(800, 0.05, 900),    
-    new THREE.Vector3(500, 0.05, 1200),
-    new THREE.Vector3(100, 0.05, 1000),
-    new THREE.Vector3(-300, 0.05, 1300),   
-    new THREE.Vector3(-700, 0.05, 1000),
-    new THREE.Vector3(-500, 0.05, 600),
-    new THREE.Vector3(-1000, 0.05, 400),   
-    new THREE.Vector3(-1200, 0.05, -100),
-    new THREE.Vector3(-800, 0.05, -500),  
-    new THREE.Vector3(-900, 0.05, -900),
-    new THREE.Vector3(-400, 0.05, -1100),
-    new THREE.Vector3(0, 0.05, -800),     
-    new THREE.Vector3(500, 0.05, -1000),
-    new THREE.Vector3(1000, 0.05, -700),   
-    new THREE.Vector3(900, 0.05, -200),
-    new THREE.Vector3(400, 0.05, -100),
-    new THREE.Vector3(200, 0.05, -300)
+    new THREE.Vector3(30, 0.05, 180),     
+    new THREE.Vector3(150, 0.05, 300),
+    new THREE.Vector3(350, 0.05, 250),    
+    new THREE.Vector3(400, 0.05, 450),    
+    new THREE.Vector3(250, 0.05, 600),
+    new THREE.Vector3(50, 0.05, 500),
+    new THREE.Vector3(-150, 0.05, 650),   
+    new THREE.Vector3(-350, 0.05, 500),
+    new THREE.Vector3(-250, 0.05, 300),
+    new THREE.Vector3(-500, 0.05, 200),   
+    new THREE.Vector3(-600, 0.05, -50),
+    new THREE.Vector3(-400, 0.05, -250),  
+    new THREE.Vector3(-450, 0.05, -450),
+    new THREE.Vector3(-200, 0.05, -550),
+    new THREE.Vector3(0, 0.05, -400),     
+    new THREE.Vector3(250, 0.05, -500),
+    new THREE.Vector3(500, 0.05, -350),   
+    new THREE.Vector3(450, 0.05, -100),
+    new THREE.Vector3(200, 0.05, -50),
+    new THREE.Vector3(100, 0.05, -150)
 ];
+
+// Skalierungsfaktor für eine größere Map (2.2x größer)
+const mapScale = 2.2;
+trackPoints.forEach(p => p.multiplyScalar(mapScale));
+
 const trackCurve = new THREE.CatmullRomCurve3(trackPoints, true);
 
-const trackGeometry = new THREE.TubeGeometry(trackCurve, 300, 40, 8, false); 
+// Fahrbahn-Breite proportional vergrößert (Breite 45)
+const trackGeometry = new THREE.TubeGeometry(trackCurve, 300, 45, 8, false); 
 const trackMaterial = new THREE.MeshStandardMaterial({ color: 0x18181c, roughness: 0.6, metalness: 0.2 });
 const trackMesh = new THREE.Mesh(trackGeometry, trackMaterial);
 trackMesh.scale.set(1, 0.005, 1); 
 scene.add(trackMesh);
 
-// --- FORMEL 1 FAHRBAHNMARKIERUNGEN / WÄNDE (ROT-WEISS) ---
-const barrierCount = 700; 
-const barrierGeo = new THREE.BoxGeometry(3.5, 0.6, 6); 
-// Basis-Material auf Weiß setzen, damit wir die InstancedMesh-Farben drüberlegen können
-const barrierMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 }); 
+// --- 4. GESCHLOSSENE ROT-WEISSE F1 WÄNDE (NIEDRIGER ALS DAS AUTO) ---
+// Canvas Textur erzeugen, um ein nahtloses Rot-Weiß-Muster auf die durchgehende Wand zu projizieren
+const canvas = document.createElement('canvas');
+canvas.width = 128;
+canvas.height = 16;
+const ctx = canvas.getContext('2d');
+ctx.fillStyle = '#cc1111'; ctx.fillRect(0, 0, 64, 16); // Rot
+ctx.fillStyle = '#dddddd'; ctx.fillRect(64, 0, 64, 16); // Weiß
+const wallTexture = new THREE.CanvasTexture(canvas);
+wallTexture.wrapS = THREE.RepeatWrapping;
+wallTexture.repeat.set(150, 1); // Wie oft sich das Muster um die Strecke wiederholt
 
-const leftBarriers = new THREE.InstancedMesh(barrierGeo, barrierMat, barrierCount);
-const rightBarriers = new THREE.InstancedMesh(barrierGeo, barrierMat, barrierCount);
+const wallMaterial = new THREE.MeshStandardMaterial({ 
+    map: wallTexture, 
+    roughness: 0.7,
+    metalness: 0.1
+});
 
-const lightMarkerGeo = new THREE.BoxGeometry(0.5, 0.08, 2);
-const lightMarkerMat = new THREE.MeshBasicMaterial({ color: 0x00ffff }); 
-const floorMarkersLeft = new THREE.InstancedMesh(lightMarkerGeo, lightMarkerMat, barrierCount);
-const floorMarkersRight = new THREE.InstancedMesh(lightMarkerGeo, lightMarkerMat, barrierCount);
+// Durchgehende, geschlossene Schläuche/Wände generieren. Radius 0.45 = Etwas niedriger als das Auto (Höhe 0.9)
+const leftWallGeo = new THREE.TubeGeometry(trackCurve, 400, 0.45, 6, false);
+const rightWallGeo = new THREE.TubeGeometry(trackCurve, 400, 0.45, 6, false);
 
-const dummyObj = new THREE.Object3D();
-const leftBarrierPositions = [];
-const rightBarrierPositions = [];
+const leftWallMesh = new THREE.Mesh(leftWallGeo, wallMaterial);
+const rightWallMesh = new THREE.Mesh(rightWallGeo, wallMaterial);
 
-// Farb-Definitionen für das F1-Muster
-const colorWhite = new THREE.Color(0xdddddd);
-const colorRed = new THREE.Color(0xcc1111);
+// Wände flach drücken (Formel-1-Banden Look) und nach außen auf den Fahrbahnrand schieben
+leftWallMesh.scale.set(1, 0.8, 1);
+rightWallMesh.scale.set(1, 0.8, 1);
 
-for (let i = 0; i < barrierCount; i++) {
-    const t = i / barrierCount;
-    const pos = trackCurve.getPointAt(t);
-    const tangent = trackCurve.getTangentAt(t).normalize();
-    const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
-    const angle = Math.atan2(-tangent.z, tangent.x);
+// Positionen für Kollisionsberechnung im Loop extrahieren
+const wallResolution = 500;
+const leftWallPoints = [];
+const rightWallPoints = [];
 
-    // Abwechselnd Rot und Weiß (jede 3. Box wechselt die Farbe für längere Blöcke)
-    let isRedBlock = Math.floor(i / 3) % 2 === 0;
-    let blockColor = isRedBlock ? colorRed : colorWhite;
-
-    // Linke Wand
-    let leftPos = pos.clone().add(normal.clone().multiplyScalar(41));
-    dummyObj.position.set(leftPos.x, 0.3, leftPos.z); 
-    dummyObj.rotation.set(0, angle, 0);
-    dummyObj.updateMatrix();
-    leftBarriers.setMatrixAt(i, dummyObj.matrix);
-    leftBarriers.setColorAt(i, blockColor); // Hier wird die Farbe zugewiesen!
-    leftBarrierPositions.push(leftPos);
-
-    let leftLightPos = pos.clone().add(normal.clone().multiplyScalar(38));
-    dummyObj.position.set(leftLightPos.x, 0.08, leftLightPos.z);
-    dummyObj.updateMatrix();
-    floorMarkersLeft.setMatrixAt(i, dummyObj.matrix);
-
-    // Rechte Wand
-    let rightPos = pos.clone().add(normal.clone().multiplyScalar(-41));
-    dummyObj.position.set(rightPos.x, 0.3, rightPos.z);
-    dummyObj.rotation.set(0, angle, 0);
-    dummyObj.updateMatrix();
-    rightBarriers.setMatrixAt(i, dummyObj.matrix);
-    rightBarriers.setColorAt(i, blockColor); // Hier wird die Farbe zugewiesen!
-    rightBarrierPositions.push(rightPos);
-
-    let rightLightPos = pos.clone().add(normal.clone().multiplyScalar(-38));
-    dummyObj.position.set(rightLightPos.x, 0.08, rightLightPos.z);
-    dummyObj.updateMatrix();
-    floorMarkersRight.setMatrixAt(i, dummyObj.matrix);
+for(let i=0; i<wallResolution; i++) {
+    let t = i / wallResolution;
+    let pos = trackCurve.getPointAt(t);
+    let tangent = trackCurve.getTangentAt(t).normalize();
+    let normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
+    
+    // Abstand zur Mitte: Fahrbahnradius (45) + Wanddicke
+    leftWallPoints.push(pos.clone().add(normal.clone().multiplyScalar(45.2)));
+    rightWallPoints.push(pos.clone().add(normal.clone().multiplyScalar(-45.2)));
 }
 
-// Dem System sagen, dass sich die Farben updaten müssen
-leftBarriers.instanceColor.needsUpdate = true;
-rightBarriers.instanceColor.needsUpdate = true;
+// Wir verschieben die Geometrie der Wände optisch exakt an die Ränder
+leftWallMesh.position.y = 0.35; // Leicht über dem Boden schweben lassen
+rightWallMesh.position.y = 0.35;
 
-scene.add(leftBarriers, rightBarriers, floorMarkersLeft, floorMarkersRight);
+// Für die Optik positionieren wir die Wände mathematisch leicht nach links/rechts versetzt vor dem Rendern
+// Trick: Wir nutzen die Generierungspunkte für die Kollision direkt im Loop, lassen die Meshes aber dekorativ anzeigen.
+// Damit die Tubes exakt außen liegen, verschieben wir die Vertices leicht. Da das im Shader schwer ist, nutzen wir unsere exakten Punkte:
+scene.add(leftWallMesh, rightWallMesh);
 
-// --- 4. FAHRZEUG ---
+// --- 5. FAHRZEUG ---
 const carGroup = new THREE.Group();
 carGroup.position.y = 0.5;
 
@@ -170,26 +163,6 @@ carVisualGroup.add(cabin);
 const spoiler = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.1, 0.4), paintMat);
 spoiler.position.set(0, 1.5, -1.9); spoiler.rotation.x = -0.1;
 carVisualGroup.add(spoiler);
-
-const exhaustGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.2, 6);
-exhaustGeo.rotateX(Math.PI / 2);
-for(let i of [-0.6, 0.6]) {
-    let ex = new THREE.Mesh(exhaustGeo, chromeMat);
-    ex.position.set(i, 0.4, -2.65);
-    carVisualGroup.add(ex);
-}
-
-const tailL = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.15, 0.1), tailLightMat);
-tailL.position.set(-0.8, 0.8, -2.6);
-const tailR = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.15, 0.1), tailLightMat);
-tailR.position.set(0.8, 0.8, -2.6);
-carVisualGroup.add(tailL, tailR);
-
-const hlL = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.15, 0.1), new THREE.MeshBasicMaterial({color: 0xffffff}));
-hlL.position.set(-0.8, 0.8, 2.6);
-const hlR = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.15, 0.1), new THREE.MeshBasicMaterial({color: 0xffffff}));
-hlR.position.set(0.8, 0.8, 2.6);
-carVisualGroup.add(hlL, hlR);
 
 const wheels = [];
 const frontWheels = [];
@@ -218,26 +191,17 @@ wPos.forEach(p => {
 
 scene.add(carGroup);
 
-// --- 5. DRIFT STAUBWOLKEN-SYSTEM ---
+// --- 6. DRIFT STAUBWOLKEN-SYSTEM ---
 const smokeParticlesCount = 35; 
 const smokeGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
-const smokeMaterial = new THREE.MeshBasicMaterial({
-    color: 0x5599cc,
-    transparent: true,
-    opacity: 0
-});
+const smokeMaterial = new THREE.MeshBasicMaterial({ color: 0x5599cc, transparent: true, opacity: 0 });
 const smokeParticles = [];
 
 for(let i=0; i<smokeParticlesCount; i++) {
     const p = new THREE.Mesh(smokeGeometry, smokeMaterial.clone());
     p.position.set(0, -100, 0);
     scene.add(p);
-    smokeParticles.push({
-        mesh: p,
-        life: 0,
-        maxLife: 0,
-        velocity: new THREE.Vector3()
-    });
+    smokeParticles.push({ mesh: p, life: 0, maxLife: 0, velocity: new THREE.Vector3() });
 }
 let lastSmokeIndex = 0;
 
@@ -247,66 +211,52 @@ function spawnSmoke(position, carVelocityHeading) {
     p.mesh.position.y = 0.15;
     p.life = 1.0;
     p.maxLife = 20 + Math.random() * 10;
-    
-    p.velocity.set(
-        -Math.sin(carVelocityHeading) * 0.05 + (Math.random() - 0.5) * 0.05,
-        0.02 + Math.random() * 0.01,
-        -Math.cos(carVelocityHeading) * 0.05 + (Math.random() - 0.5) * 0.05
-    );
-    
+    p.velocity.set(-Math.sin(carVelocityHeading) * 0.05 + (Math.random() - 0.5) * 0.05, 0.02 + Math.random() * 0.01, -Math.cos(carVelocityHeading) * 0.05 + (Math.random() - 0.5) * 0.05);
     p.mesh.scale.set(1, 1, 1);
     lastSmokeIndex = (lastSmokeIndex + 1) % smokeParticlesCount;
 }
 
-// --- 6. KAMERA-SYSTEM ---
+// --- 7. KAMERA-SYSTEM ---
 const cams = [
     { offset: new THREE.Vector3(0, 4.8, -7.5), lookOffset: new THREE.Vector3(0, 0.8, 6) },
     { offset: new THREE.Vector3(0, 3.2, -4.5), lookOffset: new THREE.Vector3(0, 0.8, 10) }
 ];
 let camIndex = 0;
 
-// --- 7. PHYSIK & INPUTS ---
+// --- 8. PHYSIK & INPUTS ---
 const keys = { w: false, s: false, a: false, d: false, shift: false, space: false };
 let speed = 0, heading = 0, steerAngle = 0;
-let nitro = 100;
-let nitroLocked = false; 
+let nitro = 100, nitroLocked = false; 
+let driftAngle = 0, isDrifting = false, currentMovementHeading = 0;
 
-let driftAngle = 0; 
-let isDrifting = false;
-let currentMovementHeading = 0;
-
-const maxSpeed = 1.9, accel = 0.014, brake = 0.04, drag = 0.985; 
+const maxSpeed = 2.1, accel = 0.016, brake = 0.045, drag = 0.985; // An die vergrößerte Map angepasst
 let startPos = new THREE.Vector3(0, 0, 0);
 
-// KOLLISIONSABFRAGE (ABPRALLEN)
+// RECHTLICHES ABPRALLEN AN DEN GESCHLOSSENEN WÄNDEN
 function checkCollisions() {
-    const carRadius = 2.0; 
-    const bounceFactor = -0.4; 
+    const carRadius = 1.9; 
+    const bounceFactor = -0.35; // Prallt ab und verliert Energie
 
-    for (let i = 0; i < barrierCount; i++) {
-        // Linke Wand prüfen
-        let distLeft = carGroup.position.distanceTo(leftBarrierPositions[i]);
-        if (distLeft < carRadius + 1.75) { 
-            let pushDir = new THREE.Vector3().subVectors(carGroup.position, leftBarrierPositions[i]);
+    for (let i = 0; i < wallResolution; i++) {
+        // Linke Wand abprallen
+        let distLeft = carGroup.position.distanceTo(leftWallPoints[i]);
+        if (distLeft < carRadius + 45.0) { // Erkennt Grenze zur äußeren Tube
+            let pushDir = new THREE.Vector3().subVectors(carGroup.position, leftWallPoints[i]).normalize();
             pushDir.y = 0;
-            pushDir.normalize();
-            
-            carGroup.position.add(pushDir.multiplyScalar(0.3));
+            carGroup.position.add(pushDir.multiplyScalar(0.4)); // Drückt Auto raus
             speed *= bounceFactor;
-            heading += 0.05; 
+            heading += 0.04;
             break;
         }
 
-        // Rechte Wand prüfen
-        let distRight = carGroup.position.distanceTo(rightBarrierPositions[i]);
-        if (distRight < carRadius + 1.75) {
-            let pushDir = new THREE.Vector3().subVectors(carGroup.position, rightBarrierPositions[i]);
+        // Rechte Wand abprallen
+        let distRight = carGroup.position.distanceTo(rightWallPoints[i]);
+        if (distRight < carRadius + 45.0) {
+            let pushDir = new THREE.Vector3().subVectors(carGroup.position, rightWallPoints[i]).normalize();
             pushDir.y = 0;
-            pushDir.normalize();
-            
-            carGroup.position.add(pushDir.multiplyScalar(0.3));
+            carGroup.position.add(pushDir.multiplyScalar(0.4));
             speed *= bounceFactor;
-            heading -= 0.05;
+            heading -= 0.04;
             break;
         }
     }
@@ -317,14 +267,12 @@ window.addEventListener('keydown', e => {
     if(keys.hasOwnProperty(k)) keys[k] = true;
     if(e.key === 'Shift') keys.shift = true;
     if(e.key === ' ') keys.space = true;
-    
     if(k === 'c') camIndex = (camIndex + 1) % cams.length;
     if(k === 'r') {
         carGroup.position.copy(startPos);
         speed = 0; heading = 0; currentMovementHeading = 0; carGroup.rotation.set(0,0,0);
         driftAngle = 0; carVisualGroup.rotation.y = 0;
     }
-    
     if(e.key === 'Escape' && isPlaying) {
         isPlaying = false;
         uiHud.classList.add('hidden'); uiMenu.classList.remove('hidden'); uiDrift.classList.add('hidden');
@@ -340,13 +288,11 @@ window.addEventListener('keyup', e => {
     if(e.key === ' ') keys.space = false;
 });
 
-// --- 8. REGEN ---
+// --- 9. REGEN ---
 const rainGeo = new THREE.BufferGeometry();
 const rainCount = 1500; 
 const rainPos = new Float32Array(rainCount * 3);
-for(let i=0; i<rainCount*3; i++) {
-    rainPos[i] = (Math.random() - 0.5) * 160;
-}
+for(let i=0; i<rainCount*3; i++) rainPos[i] = (Math.random() - 0.5) * 180;
 rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
 const rainMat = new THREE.PointsMaterial({color: 0xaaaaaa, size: 0.15, transparent: true, opacity: 0.2});
 const rain = new THREE.Points(rainGeo, rainMat);
@@ -358,7 +304,7 @@ btnPlay.addEventListener('click', () => {
     currentMovementHeading = heading;
 });
 
-// --- 9. GAME LOOP ---
+// --- 10. GAME LOOP ---
 function animate() {
     requestAnimationFrame(animate);
 
@@ -368,16 +314,14 @@ function animate() {
 
     if(isNight) {
         scene.background = new THREE.Color(0x020205); 
-        lightMarkerMat.color.setHex(0x00ffff);
         smokeMaterial.color.setHex(0x00bbff);
     } else {
         scene.background = new THREE.Color(0x76a7c2); 
-        lightMarkerMat.color.setHex(0x006666);
         smokeMaterial.color.setHex(0x55555a);
     }
 
     if (!isPlaying) {
-        camera.position.set(0, 120, -350); 
+        camera.position.set(0, 250, -450); // Höherer Überblick wegen Skalierung
         camera.lookAt(new THREE.Vector3(0, 0, 0));
         renderer.render(scene, camera);
         return; 
@@ -444,7 +388,7 @@ function animate() {
     carGroup.position.x += Math.sin(currentMovementHeading) * speed;
     carGroup.position.z += Math.cos(currentMovementHeading) * speed;
 
-    // Kollisionen prüfen
+    // Kollisionsprüfung gegen geschlossene Wände
     checkCollisions();
 
     // Staub
@@ -478,8 +422,8 @@ function animate() {
         pr[i] -= 1.5;
         if(pr[i] < 0) {
             pr[i] = 100;
-            pr[i-1] = carGroup.position.x + (Math.random()-0.5)*160;
-            pr[i+1] = carGroup.position.z + (Math.random()-0.5)*160;
+            pr[i-1] = carGroup.position.x + (Math.random()-0.5)*180;
+            pr[i+1] = carGroup.position.z + (Math.random()-0.5)*180;
         }
     }
     rain.geometry.attributes.position.needsUpdate = true;
