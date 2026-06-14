@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CARDRIFT</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div id="game-container"></div>
+
+    <div id="main-menu">
+        <div class="menu-content">
+            <h1 class="game-title"><span class="neon-text">CARDRIFT</span></h1>
+            <p class="game-subtitle">CYBERPUNK STREET RACER</p>
+            
+            <div class="menu-buttons">
+                <button id="btn-play" class="menu-btn">SPIELEN</button>
+                <button class="menu-btn">GARAGE</button>
+                <button class="menu-btn">EINSTELLUNGEN</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="hud" class="hidden">
+        <div id="ui-top-left">
+            <h3>CARDRIFT</h3>
+            <div id="controls-list">
+                <b>W / S</b> = Gas / Bremse<br>
+                <b>A / D</b> = Lenken<br>
+                <b>Shift</b> = Nitro-Boost<br>
+                <b>Leertaste</b> = Handbremse<br>
+                <b>C</b> = Kamera wechseln<br>
+                <b>L</b> = Scheinwerfer an/aus<br>
+                <b>R</b> = Auto zurücksetzen<br>
+                <b>P</b> = Pause<br>
+                <b>ESC</b> = Hauptmenü
+            </div>
+        </div>
+
+        <div id="ui-bottom-left" class="hidden">
+            <span id="drift-text">DRIFT!</span>
+        </div>
+
+        <div id="dashboard">
+            <div class="dash-row">
+                <span class="label">SPEED</span>
+                <span id="ui-speed" class="val">0 km/h</span>
+            </div>
+            <div class="dash-row time-row">
+                <span class="label">TIME</span>
+                <span id="ui-time" class="val-time">12:00</span>
+            </div>
+            <div id="nitro-bg">
+                <div id="nitro-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="pause-screen" class="hidden">
+        <div class="pause-content">
+            <h2>PAUSE</h2>
+            <p>Drücke <span class="highlight">P</span> zum Weiterfahren</p>
+        </div>
+    </div>
+
+    <script type="module" src="js/game.js"></script>
+</body>
+</html>
