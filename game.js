@@ -84,40 +84,42 @@ const trackMesh = new THREE.Mesh(trackGeometry, trackMaterial);
 trackMesh.scale.set(1, 0.005, 1); 
 scene.add(trackMesh);
 
-// --- 4. HÖHERE, GESCHLOSSENE ROT-WEISSE WÄNDE ---
+// --- 4. EXTREM HOHE, GESCHLOSSENE ROT-WEISSE F1 MAUERN ---
 const canvas = document.createElement('canvas');
 canvas.width = 128;
-canvas.height = 32; // Canvas leicht erhöht für die Texturstreckung
+canvas.height = 64; 
 const ctx = canvas.getContext('2d');
-ctx.fillStyle = '#cc1111'; ctx.fillRect(0, 0, 64, 32); // Rot
-ctx.fillStyle = '#dddddd'; ctx.fillRect(64, 0, 64, 32); // Weiß
+ctx.fillStyle = '#cc1111'; ctx.fillRect(0, 0, 64, 64); // Rot
+ctx.fillStyle = '#dddddd'; ctx.fillRect(64, 0, 64, 64); // Weiß
 const wallTexture = new THREE.CanvasTexture(canvas);
 wallTexture.wrapS = THREE.RepeatWrapping;
-wallTexture.repeat.set(180, 1); 
+wallTexture.wrapT = THREE.RepeatWrapping;
+wallTexture.repeat.set(250, 2); 
 
 const wallMaterial = new THREE.MeshStandardMaterial({ 
     map: wallTexture, 
-    roughness: 0.6,
-    metalness: 0.1
+    roughness: 0.5,
+    metalness: 0.1,
+    side: THREE.DoubleSide
 });
 
-// Radius der Tubes auf 1.8 erhöht (Dadurch werden die geschlossenen Wände deutlich höher als das Auto)
-const leftWallGeo = new THREE.TubeGeometry(trackCurve, 400, 1.8, 8, false);
-const rightWallGeo = new THREE.TubeGeometry(trackCurve, 400, 1.8, 8, false);
+// Geschlossene 3D-Röhren für die Wände
+const leftWallGeo = new THREE.TubeGeometry(trackCurve, 500, 2.5, 8, false);
+const rightWallGeo = new THREE.TubeGeometry(trackCurve, 500, 2.5, 8, false);
 
 const leftWallMesh = new THREE.Mesh(leftWallGeo, wallMaterial);
 const rightWallMesh = new THREE.Mesh(rightWallGeo, wallMaterial);
 
-// Optische Anpassung: Die Wände werden vertikal leicht gestreckt, damit sie wie glatte, hohe F1-Mauern wirken
-leftWallMesh.scale.set(1, 1.4, 1);
-rightWallMesh.scale.set(1, 1.4, 1);
+// Zwingt die Wand, vertikal extrem hochgezogen zu sein
+leftWallMesh.scale.set(1, 4.0, 1);
+rightWallMesh.scale.set(1, 4.0, 1);
 
-// Die Wandmitte leicht nach oben verschieben, damit sie bündig auf dem Asphalt aufsitzt
-leftWallMesh.position.y = 1.2; 
-rightWallMesh.position.y = 1.2;
+// Mauern ein Stück nach oben verschieben, damit sie auf der Strecke stehen
+leftWallMesh.position.y = 2.0; 
+rightWallMesh.position.y = 2.0;
 
 // Datenpunkte für präzise mathematische Kollisionen sammeln
-const wallResolution = 500;
+const wallResolution = 600;
 const leftWallPoints = [];
 const rightWallPoints = [];
 
@@ -127,9 +129,9 @@ for(let i=0; i<wallResolution; i++) {
     let tangent = trackCurve.getTangentAt(t).normalize();
     let normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
     
-    // Distanzberechnung angepasst an die neue Tubes-Dicke (Radius)
-    leftWallPoints.push(pos.clone().add(normal.clone().multiplyScalar(44.2)));
-    rightWallPoints.push(pos.clone().add(normal.clone().multiplyScalar(-44.2)));
+    // Drückt die unsichtbare Kollisionsgrenze an den äußeren Rand der 45er Fahrbahn
+    leftWallPoints.push(pos.clone().add(normal.clone().multiplyScalar(44.0)));
+    rightWallPoints.push(pos.clone().add(normal.clone().multiplyScalar(-44.0)));
 }
 
 scene.add(leftWallMesh, rightWallMesh);
@@ -226,15 +228,15 @@ let driftAngle = 0, isDrifting = false, currentMovementHeading = 0;
 const maxSpeed = 2.1, accel = 0.016, brake = 0.045, drag = 0.985; 
 let startPos = new THREE.Vector3(0, 0, 0);
 
-// PRÄZISE ANPRALL-LOGIK AN DEN HÖHEREN MAUERN
+// REALISTISCHES ABPRALLEN AN DEN HÖHEREN MAUERN
 function checkCollisions() {
     const carRadius = 1.9; 
-    const bounceFactor = -0.35; // Dreht Impuls um beim Crash
+    const bounceFactor = -0.35; 
 
     for (let i = 0; i < wallResolution; i++) {
         // Linke hohe Wand
         let distLeft = carGroup.position.distanceTo(leftWallPoints[i]);
-        if (distLeft < carRadius + 44.2) { 
+        if (distLeft < carRadius + 44.0) { 
             let pushDir = new THREE.Vector3().subVectors(carGroup.position, leftWallPoints[i]).normalize();
             pushDir.y = 0;
             carGroup.position.add(pushDir.multiplyScalar(0.4)); 
@@ -245,7 +247,7 @@ function checkCollisions() {
 
         // Rechte hohe Wand
         let distRight = carGroup.position.distanceTo(rightWallPoints[i]);
-        if (distRight < carRadius + 44.2) {
+        if (distRight < carRadius + 44.0) {
             let pushDir = new THREE.Vector3().subVectors(carGroup.position, rightWallPoints[i]).normalize();
             pushDir.y = 0;
             carGroup.position.add(pushDir.multiplyScalar(0.4));
