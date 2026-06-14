@@ -2,7 +2,7 @@
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x0a0a15, 0.002);
 
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1500); // Weitsicht für Performance optimiert
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1500); 
 
 const renderer = new THREE.WebGLRenderer({ 
     antialias: false, 
@@ -10,27 +10,22 @@ const renderer = new THREE.WebGLRenderer({
     precision: "mediump" 
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
-
-// SCHATTEN KOMPLETT AUSGESCHALTET FÜR MAXIMALE LAPTOP-PERFORMANCE
 renderer.shadowMap.enabled = false; 
 document.getElementById('game-container').appendChild(renderer.domElement);
 
-// --- SAFEGUARD: AUTOMATISCHER RETTUNGSRING BEI GRAFIKKARTEN-ABSTURZ ---
+// SAFEGUARD BEI GRAFIKKARTEN-ABSTURZ
 renderer.domElement.addEventListener("webglcontextlost", (event) => {
     event.preventDefault();
-    // VRAM leeren und Spiel sauber neu starten, bevor der Bildschirm einfriert
     console.warn("Grafikkarte überlastet! Starte Spiel neu...");
     window.location.reload();
 }, false);
 
 // Game State
 let isPlaying = false;
-let isPaused = false;
 
-// UI Elemente holen
+// UI Elemente holen (Pause-Screen entfernt)
 const uiMenu = document.getElementById('main-menu');
 const uiHud = document.getElementById('hud');
-const uiPause = document.getElementById('pause-screen');
 const uiSpeed = document.getElementById('ui-speed');
 const uiTime = document.getElementById('ui-time');
 const nitroBar = document.getElementById('nitro-bar');
@@ -38,7 +33,7 @@ const btnPlay = document.getElementById('btn-play');
 const uiDrift = document.getElementById('ui-bottom-left');
 
 // --- 2. BELEUCHTUNG & WETTER ---
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.45); // Etwas heller, da Schatten fehlen
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.45); 
 scene.add(ambientLight);
 
 const sunLight = new THREE.DirectionalLight(0xffffee, 0.8);
@@ -78,13 +73,12 @@ const trackPoints = [
 ];
 const trackCurve = new THREE.CatmullRomCurve3(trackPoints, true);
 
-const trackGeometry = new THREE.TubeGeometry(trackCurve, 200, 26, 8, false); // Extrem polygonarm gemacht
+const trackGeometry = new THREE.TubeGeometry(trackCurve, 200, 26, 8, false); 
 const trackMaterial = new THREE.MeshStandardMaterial({ color: 0x18181c, roughness: 0.6, metalness: 0.2 });
 const trackMesh = new THREE.Mesh(trackGeometry, trackMaterial);
 trackMesh.scale.set(1, 0.005, 1); 
 scene.add(trackMesh);
 
-// Neon-Barrieren & Lichter (Auf 450 reduziert – schont den Prozessor)
 const barrierCount = 450; 
 const barrierGeo = new THREE.BoxGeometry(1.5, 1.2, 4);
 const barrierMatInner = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.7 });
@@ -156,7 +150,7 @@ carVisualGroup.add(spoiler);
 
 const exhaustGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.2, 6);
 exhaustGeo.rotateX(Math.PI / 2);
-for(let i of [-0.6, 0.6]) { // Auspuffrohre von 4 auf 2 reduziert
+for(let i of [-0.6, 0.6]) {
     let ex = new THREE.Mesh(exhaustGeo, chromeMat);
     ex.position.set(i, 0.4, -2.65);
     carVisualGroup.add(ex);
@@ -168,7 +162,6 @@ const tailR = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.15, 0.1), tailLightMat
 tailR.position.set(0.8, 0.8, -2.6);
 carVisualGroup.add(tailL, tailR);
 
-// Scheinwerfer-Lichter (Keine rechenintensiven Spotlights mehr, sondern reine Leuchtflächen)
 const hlL = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.15, 0.1), new THREE.MeshBasicMaterial({color: 0xffffff}));
 hlL.position.set(-0.8, 0.8, 2.6);
 const hlR = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.15, 0.1), new THREE.MeshBasicMaterial({color: 0xffffff}));
@@ -177,7 +170,7 @@ carVisualGroup.add(hlL, hlR);
 
 const wheels = [];
 const frontWheels = [];
-const wheelGeo = new THREE.CylinderGeometry(0.45, 0.45, 0.4, 12); // Extrem CPU-schonend
+const wheelGeo = new THREE.CylinderGeometry(0.45, 0.45, 0.4, 12); 
 wheelGeo.rotateZ(Math.PI / 2);
 const tireMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
 const rimMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.7 });
@@ -203,7 +196,7 @@ wPos.forEach(p => {
 scene.add(carGroup);
 
 // --- 5. DRIFT STAUBWOLKEN-SYSTEM ---
-const smokeParticlesCount = 35; // Weiter reduziert für flüssiges Rendering
+const smokeParticlesCount = 35; 
 const smokeGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
 const smokeMaterial = new THREE.MeshBasicMaterial({
     color: 0x5599cc,
@@ -268,10 +261,6 @@ window.addEventListener('keydown', e => {
     if(e.key === 'Shift') keys.shift = true;
     if(e.key === ' ') keys.space = true;
     
-    if(k === 'p' && isPlaying) {
-        isPaused = !isPaused;
-        uiPause.classList.toggle('hidden', !isPaused);
-    }
     if(k === 'c') camIndex = (camIndex + 1) % cams.length;
     if(k === 'r') {
         carGroup.position.copy(startPos);
@@ -280,8 +269,8 @@ window.addEventListener('keydown', e => {
     }
     
     if(e.key === 'Escape' && isPlaying) {
-        isPlaying = false; isPaused = false;
-        uiPause.classList.add('hidden'); uiHud.classList.add('hidden'); uiMenu.classList.remove('hidden'); uiDrift.classList.add('hidden');
+        isPlaying = false;
+        uiHud.classList.add('hidden'); uiMenu.classList.remove('hidden'); uiDrift.classList.add('hidden');
         speed = 0; driftAngle = 0;
         keys.w = keys.s = keys.a = keys.d = keys.shift = keys.space = false;
     }
@@ -294,7 +283,7 @@ window.addEventListener('keyup', e => {
     if(e.key === ' ') keys.space = false;
 });
 
-// --- 8. REGEN (Auf 1.200 Partikel herabgesetzt) ---
+// --- 8. REGEN ---
 const rainGeo = new THREE.BufferGeometry();
 const rainCount = 1200; 
 const rainPos = new Float32Array(rainCount * 3);
@@ -318,7 +307,6 @@ function animate() {
 
     timeOfDay += 0.0004; 
     let sunY = Math.cos(timeOfDay) * 200;
-    
     let isNight = sunY < 10;
 
     if(isNight) {
@@ -332,14 +320,11 @@ function animate() {
     }
 
     if (!isPlaying) {
-        // Kamera steht im Menü fest – das spart enorm viel Rechenkraft
         camera.position.set(0, 70, -200);
         camera.lookAt(new THREE.Vector3(0, 0, 0));
         renderer.render(scene, camera);
         return; 
     }
-
-    if (isPaused) return;
 
     // Nitro
     let useNitro = keys.shift && speed > 0.1 && !nitroLocked && nitro > 0;
