@@ -1,8 +1,8 @@
 // --- 1. ENGINE SETUP & GLOBALE VARIABLEN ---
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x0a0a15, 0.002);
+scene.fog = new THREE.FogExp2(0x0a0a15, 0.0015); 
 
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1500); 
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 3000); 
 
 const renderer = new THREE.WebGLRenderer({ 
     antialias: false, 
@@ -23,7 +23,7 @@ renderer.domElement.addEventListener("webglcontextlost", (event) => {
 // Game State
 let isPlaying = false;
 
-// UI Elemente holen (Pause-Screen entfernt)
+// UI Elemente
 const uiMenu = document.getElementById('main-menu');
 const uiHud = document.getElementById('hud');
 const uiSpeed = document.getElementById('ui-speed');
@@ -37,61 +37,69 @@ const ambientLight = new THREE.AmbientLight(0xffffff, 0.45);
 scene.add(ambientLight);
 
 const sunLight = new THREE.DirectionalLight(0xffffee, 0.8);
-sunLight.position.set(100, 150, 50);
+sunLight.position.set(200, 300, 100);
 scene.add(sunLight);
 
 let timeOfDay = Math.PI / 4; 
 
-// --- 3. WELT & RENNSTRECKE ---
+// --- 3. WELT & RENNSTRECKE (VERGRÖSSERT) ---
 const groundMat = new THREE.MeshStandardMaterial({ color: 0x050508, roughness: 0.9, metalness: 0.1 });
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000), groundMat);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(8000, 8000), groundMat);
 ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
 
 const trackPoints = [
     new THREE.Vector3(0, 0.05, 0),
-    new THREE.Vector3(30, 0.05, 180),     
-    new THREE.Vector3(150, 0.05, 300),
-    new THREE.Vector3(350, 0.05, 250),    
-    new THREE.Vector3(400, 0.05, 450),    
-    new THREE.Vector3(250, 0.05, 600),
-    new THREE.Vector3(50, 0.05, 500),
-    new THREE.Vector3(-150, 0.05, 650),   
-    new THREE.Vector3(-350, 0.05, 500),
-    new THREE.Vector3(-250, 0.05, 300),
-    new THREE.Vector3(-500, 0.05, 200),   
-    new THREE.Vector3(-600, 0.05, -50),
-    new THREE.Vector3(-400, 0.05, -250),  
-    new THREE.Vector3(-450, 0.05, -450),
-    new THREE.Vector3(-200, 0.05, -550),
-    new THREE.Vector3(0, 0.05, -400),     
-    new THREE.Vector3(250, 0.05, -500),
-    new THREE.Vector3(500, 0.05, -350),   
-    new THREE.Vector3(450, 0.05, -100),
-    new THREE.Vector3(200, 0.05, -50),
-    new THREE.Vector3(100, 0.05, -150)
+    new THREE.Vector3(60, 0.05, 360),     
+    new THREE.Vector3(300, 0.05, 600),
+    new THREE.Vector3(700, 0.05, 500),    
+    new THREE.Vector3(800, 0.05, 900),    
+    new THREE.Vector3(500, 0.05, 1200),
+    new THREE.Vector3(100, 0.05, 1000),
+    new THREE.Vector3(-300, 0.05, 1300),   
+    new THREE.Vector3(-700, 0.05, 1000),
+    new THREE.Vector3(-500, 0.05, 600),
+    new THREE.Vector3(-1000, 0.05, 400),   
+    new THREE.Vector3(-1200, 0.05, -100),
+    new THREE.Vector3(-800, 0.05, -500),  
+    new THREE.Vector3(-900, 0.05, -900),
+    new THREE.Vector3(-400, 0.05, -1100),
+    new THREE.Vector3(0, 0.05, -800),     
+    new THREE.Vector3(500, 0.05, -1000),
+    new THREE.Vector3(1000, 0.05, -700),   
+    new THREE.Vector3(900, 0.05, -200),
+    new THREE.Vector3(400, 0.05, -100),
+    new THREE.Vector3(200, 0.05, -300)
 ];
 const trackCurve = new THREE.CatmullRomCurve3(trackPoints, true);
 
-const trackGeometry = new THREE.TubeGeometry(trackCurve, 200, 26, 8, false); 
+const trackGeometry = new THREE.TubeGeometry(trackCurve, 300, 40, 8, false); 
 const trackMaterial = new THREE.MeshStandardMaterial({ color: 0x18181c, roughness: 0.6, metalness: 0.2 });
 const trackMesh = new THREE.Mesh(trackGeometry, trackMaterial);
 trackMesh.scale.set(1, 0.005, 1); 
 scene.add(trackMesh);
 
-const barrierCount = 450; 
-const barrierGeo = new THREE.BoxGeometry(1.5, 1.2, 4);
-const barrierMatInner = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.7 });
+// --- FORMEL 1 FAHRBAHNMARKIERUNGEN / WÄNDE (ROT-WEISS) ---
+const barrierCount = 700; 
+const barrierGeo = new THREE.BoxGeometry(3.5, 0.6, 6); 
+// Basis-Material auf Weiß setzen, damit wir die InstancedMesh-Farben drüberlegen können
+const barrierMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 }); 
 
-const leftBarriers = new THREE.InstancedMesh(barrierGeo, barrierMatInner, barrierCount);
-const rightBarriers = new THREE.InstancedMesh(barrierGeo, barrierMatInner, barrierCount);
+const leftBarriers = new THREE.InstancedMesh(barrierGeo, barrierMat, barrierCount);
+const rightBarriers = new THREE.InstancedMesh(barrierGeo, barrierMat, barrierCount);
 
-const lightMarkerGeo = new THREE.BoxGeometry(0.4, 0.08, 1.5);
+const lightMarkerGeo = new THREE.BoxGeometry(0.5, 0.08, 2);
 const lightMarkerMat = new THREE.MeshBasicMaterial({ color: 0x00ffff }); 
 const floorMarkersLeft = new THREE.InstancedMesh(lightMarkerGeo, lightMarkerMat, barrierCount);
 const floorMarkersRight = new THREE.InstancedMesh(lightMarkerGeo, lightMarkerMat, barrierCount);
 
 const dummyObj = new THREE.Object3D();
+const leftBarrierPositions = [];
+const rightBarrierPositions = [];
+
+// Farb-Definitionen für das F1-Muster
+const colorWhite = new THREE.Color(0xdddddd);
+const colorRed = new THREE.Color(0xcc1111);
 
 for (let i = 0; i < barrierCount; i++) {
     const t = i / barrierCount;
@@ -100,28 +108,43 @@ for (let i = 0; i < barrierCount; i++) {
     const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
     const angle = Math.atan2(-tangent.z, tangent.x);
 
-    let leftPos = pos.clone().add(normal.clone().multiplyScalar(27));
-    dummyObj.position.set(leftPos.x, 0.6, leftPos.z);
+    // Abwechselnd Rot und Weiß (jede 3. Box wechselt die Farbe für längere Blöcke)
+    let isRedBlock = Math.floor(i / 3) % 2 === 0;
+    let blockColor = isRedBlock ? colorRed : colorWhite;
+
+    // Linke Wand
+    let leftPos = pos.clone().add(normal.clone().multiplyScalar(41));
+    dummyObj.position.set(leftPos.x, 0.3, leftPos.z); 
     dummyObj.rotation.set(0, angle, 0);
     dummyObj.updateMatrix();
     leftBarriers.setMatrixAt(i, dummyObj.matrix);
+    leftBarriers.setColorAt(i, blockColor); // Hier wird die Farbe zugewiesen!
+    leftBarrierPositions.push(leftPos);
 
-    let leftLightPos = pos.clone().add(normal.clone().multiplyScalar(24));
+    let leftLightPos = pos.clone().add(normal.clone().multiplyScalar(38));
     dummyObj.position.set(leftLightPos.x, 0.08, leftLightPos.z);
     dummyObj.updateMatrix();
     floorMarkersLeft.setMatrixAt(i, dummyObj.matrix);
 
-    let rightPos = pos.clone().add(normal.clone().multiplyScalar(-27));
-    dummyObj.position.set(rightPos.x, 0.6, rightPos.z);
+    // Rechte Wand
+    let rightPos = pos.clone().add(normal.clone().multiplyScalar(-41));
+    dummyObj.position.set(rightPos.x, 0.3, rightPos.z);
     dummyObj.rotation.set(0, angle, 0);
     dummyObj.updateMatrix();
     rightBarriers.setMatrixAt(i, dummyObj.matrix);
+    rightBarriers.setColorAt(i, blockColor); // Hier wird die Farbe zugewiesen!
+    rightBarrierPositions.push(rightPos);
 
-    let rightLightPos = pos.clone().add(normal.clone().multiplyScalar(-24));
+    let rightLightPos = pos.clone().add(normal.clone().multiplyScalar(-38));
     dummyObj.position.set(rightLightPos.x, 0.08, rightLightPos.z);
     dummyObj.updateMatrix();
     floorMarkersRight.setMatrixAt(i, dummyObj.matrix);
 }
+
+// Dem System sagen, dass sich die Farben updaten müssen
+leftBarriers.instanceColor.needsUpdate = true;
+rightBarriers.instanceColor.needsUpdate = true;
+
 scene.add(leftBarriers, rightBarriers, floorMarkersLeft, floorMarkersRight);
 
 // --- 4. FAHRZEUG ---
@@ -252,8 +275,42 @@ let driftAngle = 0;
 let isDrifting = false;
 let currentMovementHeading = 0;
 
-const maxSpeed = 1.75, accel = 0.012, brake = 0.035, drag = 0.982;
+const maxSpeed = 1.9, accel = 0.014, brake = 0.04, drag = 0.985; 
 let startPos = new THREE.Vector3(0, 0, 0);
+
+// KOLLISIONSABFRAGE (ABPRALLEN)
+function checkCollisions() {
+    const carRadius = 2.0; 
+    const bounceFactor = -0.4; 
+
+    for (let i = 0; i < barrierCount; i++) {
+        // Linke Wand prüfen
+        let distLeft = carGroup.position.distanceTo(leftBarrierPositions[i]);
+        if (distLeft < carRadius + 1.75) { 
+            let pushDir = new THREE.Vector3().subVectors(carGroup.position, leftBarrierPositions[i]);
+            pushDir.y = 0;
+            pushDir.normalize();
+            
+            carGroup.position.add(pushDir.multiplyScalar(0.3));
+            speed *= bounceFactor;
+            heading += 0.05; 
+            break;
+        }
+
+        // Rechte Wand prüfen
+        let distRight = carGroup.position.distanceTo(rightBarrierPositions[i]);
+        if (distRight < carRadius + 1.75) {
+            let pushDir = new THREE.Vector3().subVectors(carGroup.position, rightBarrierPositions[i]);
+            pushDir.y = 0;
+            pushDir.normalize();
+            
+            carGroup.position.add(pushDir.multiplyScalar(0.3));
+            speed *= bounceFactor;
+            heading -= 0.05;
+            break;
+        }
+    }
+}
 
 window.addEventListener('keydown', e => {
     let k = e.key.toLowerCase();
@@ -285,10 +342,10 @@ window.addEventListener('keyup', e => {
 
 // --- 8. REGEN ---
 const rainGeo = new THREE.BufferGeometry();
-const rainCount = 1200; 
+const rainCount = 1500; 
 const rainPos = new Float32Array(rainCount * 3);
 for(let i=0; i<rainCount*3; i++) {
-    rainPos[i] = (Math.random() - 0.5) * 120;
+    rainPos[i] = (Math.random() - 0.5) * 160;
 }
 rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
 const rainMat = new THREE.PointsMaterial({color: 0xaaaaaa, size: 0.15, transparent: true, opacity: 0.2});
@@ -305,7 +362,7 @@ btnPlay.addEventListener('click', () => {
 function animate() {
     requestAnimationFrame(animate);
 
-    timeOfDay += 0.0004; 
+    timeOfDay += 0.0002; 
     let sunY = Math.cos(timeOfDay) * 200;
     let isNight = sunY < 10;
 
@@ -320,7 +377,7 @@ function animate() {
     }
 
     if (!isPlaying) {
-        camera.position.set(0, 70, -200);
+        camera.position.set(0, 120, -350); 
         camera.lookAt(new THREE.Vector3(0, 0, 0));
         renderer.render(scene, camera);
         return; 
@@ -383,8 +440,12 @@ function animate() {
     let gripSmoothness = isDrifting ? 0.06 : 0.25; 
     currentMovementHeading = THREE.MathUtils.lerp(currentMovementHeading, heading + driftAngle * 0.4, gripSmoothness);
 
+    // Bewegung anwenden
     carGroup.position.x += Math.sin(currentMovementHeading) * speed;
     carGroup.position.z += Math.cos(currentMovementHeading) * speed;
+
+    // Kollisionen prüfen
+    checkCollisions();
 
     // Staub
     if (isDrifting && Math.abs(speed) > 0.3) {
@@ -417,8 +478,8 @@ function animate() {
         pr[i] -= 1.5;
         if(pr[i] < 0) {
             pr[i] = 100;
-            pr[i-1] = carGroup.position.x + (Math.random()-0.5)*120;
-            pr[i+1] = carGroup.position.z + (Math.random()-0.5)*120;
+            pr[i-1] = carGroup.position.x + (Math.random()-0.5)*160;
+            pr[i+1] = carGroup.position.z + (Math.random()-0.5)*160;
         }
     }
     rain.geometry.attributes.position.needsUpdate = true;
